@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -6,8 +6,23 @@ import {
     TouchableOpacity,
     ScrollView,
 } from 'react-native';
+import { getUser } from '../../utils/storage';
+import { useIsFocused } from '@react-navigation/native';
 
 const StudentHome = ({ navigation }: any) => {
+    const [user, setUser] = useState<any>({});
+    const isFocused = useIsFocused(); // detects when screen is focused
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const storedUser = await getUser();
+            if (storedUser) setUser(storedUser);
+        };
+
+        if (isFocused) {
+            fetchUser();
+        }
+    }, [isFocused]);
     const navCards = [
         { name: 'Courses', icon: 'book-outline', color: '#007AFF' },
         { name: 'Batch', icon: 'people-outline', color: '#28a745' },
@@ -16,7 +31,7 @@ const StudentHome = ({ navigation }: any) => {
     return (
         <ScrollView contentContainerStyle={styles.container}>
             {/* Welcome */}
-            <Text style={styles.welcomeText}>Welcome 👋</Text>
+            <Text style={styles.welcomeText}>Welcome {user.name}👋</Text>
             <Text style={styles.subText}>Glad to see you back!</Text>
 
             {/* Announcement */}

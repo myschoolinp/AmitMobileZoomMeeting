@@ -8,9 +8,11 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    TouchableOpacity
+    TouchableOpacity,
+    Alert
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { doc, setDoc, collection, query, where, getDocs, getFirestore } from '@react-native-firebase/firestore';
 const RegisterScreen = ({ navigation }: any) => {
     const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -78,12 +80,43 @@ const RegisterScreen = ({ navigation }: any) => {
         return valid;
     };
 
-    const handleRegister = () => {
+    const handleRegister = async () => {
         if (!validate()) return;
 
-        console.log('Registered user:', form);
+        try {
+            const db = getFirestore();
+            const q = query(collection(db, 'users'), where('email', '==', form.email));
 
-        navigation.goBack(); // back to login
+            // Check if email already exists
+            const querySnapshot = await getDocs(q);
+            let existingUser: any;
+            querySnapshot.forEach((doc: any) => {
+                existingUser = doc.data();
+            });
+
+            if (existingUser) {
+                Alert.alert('Email already registered');
+                return;
+            }
+
+            const docId = form.email.toLowerCase();
+
+            await setDoc(doc(db, "users", docId), {
+                name: form.name,
+                email: form.email,
+                mobile: form.mobile,
+                dob: form.dob,
+                password: form.password,
+                address: form.address,
+                role: "student",
+                createdAt: Date.now(),
+            });
+
+            Alert.alert('Registration successful');
+            navigation.navigate('Login');
+        } catch (error: any) {
+            Alert.alert(error.message);
+        }
     };
 
     return (

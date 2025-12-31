@@ -7,13 +7,15 @@ import StudentDashboard from '../screens/student/StudentDashboard';
 import ScheduleMeetingScreen from '../screens/admin/ScheduleMeetingScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import StudentTabNavigator from './StudentTabNavigator';
+import AuthLoading from '../screens/AuthLoading';
 
 const Stack = createStackNavigator();
 
 const AppNavigator = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Login">
+      <Stack.Navigator initialRouteName="AuthLoading">
+        <Stack.Screen name="AuthLoading" component={AuthLoading} />
         <Stack.Screen name="Login" component={LoginScreen} options={{
           title: 'Login',
           headerTitleAlign: 'center', // ✅ center horizontally

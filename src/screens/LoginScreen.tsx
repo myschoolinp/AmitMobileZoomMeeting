@@ -11,7 +11,8 @@ import {
   ScrollView,
   StyleSheet
 } from 'react-native';
-
+import { doc, setDoc, collection, query, where, getDoc, getFirestore } from '@react-native-firebase/firestore';
+import { saveUser } from '../utils/storage';
 type Props = {
   navigation: any;
 };
@@ -51,19 +52,35 @@ const LoginScreen = ({ navigation }: Props) => {
     }
 
     if (!isValid) return;
-
     try {
-      // Clear fields after success
+      const db = getFirestore();
+      const userRef = doc(db, "users", email);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        Alert.alert('Invalid email or password');
+        return;
+      }
+
+      const userData: any = userSnap.data();
+
+      if (userData && userData.password !== password) {
+        Alert.alert('Invalid email or password');
+        return;
+      }
+
+      // Clear fields after login
       setEmail('');
       setPassword('');
-
-      if (email === 'admin@gmail.com') {
-        navigation.navigate('AdminDashboard');
+      delete userData.password; // Remove password before storing or using
+      saveUser(userData);
+      if (userData.role === 'admin') {
+        navigation.replace('AdminDashboard');
       } else {
-        navigation.navigate('StudentDashboard');
+        navigation.replace('StudentDashboard');
       }
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
+    } catch (error: any) {
+      Alert.alert(error.message);
     }
   };
 
