@@ -1,6 +1,6 @@
 export type RootStackParamList = {
-    Login: undefined;
-    AdminDashboard: undefined;
-    StudentDashboard: undefined;
-    ScheduleMeeting: undefined; // Add this new route
-  };
+  Login: undefined;
+  AdminDashboard: undefined;
+  StudentDashboard: undefined;
+  AdminAddBatch: undefined; // Add this new route
+};

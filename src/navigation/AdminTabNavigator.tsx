@@ -1,15 +1,15 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import StudentHome from '../screens/student/StudentHome';
-import StudentBatch from '../screens/student/StudentBatch';
-import StudentCourses from '../screens/student/StudentCourses';
 import StudentProfile from '../screens/student/StudentProfile';
 import { TouchableOpacity, Text, Alert } from 'react-native';
 import { clearUser } from '../utils/storage';
 import { useNavigation } from '@react-navigation/native';
+import AdminHome from '../screens/admin/AdminHome';
+import AdminBatches from '../screens/admin/AdminBatches';
+import AdminCourses from '../screens/admin/adminCourses';
 const Tab = createBottomTabNavigator();
 
-const StudentTabNavigator = () => {
+const AdminTabNavigator = () => {
     return (
 
         <Tab.Navigator
@@ -61,18 +61,17 @@ const StudentTabNavigator = () => {
         >
             <Tab.Screen
                 name="Home"
-                component={StudentHome}
+                component={AdminHome}
 
             />
             <Tab.Screen
                 name="Batch"
-                component={StudentBatch}
+                component={AdminBatches}
 
             />
             <Tab.Screen
                 name="Courses"
-                component={StudentCourses}
-
+                component={AdminCourses}
             />
             <Tab.Screen
                 name="Profile"
@@ -83,4 +82,4 @@ const StudentTabNavigator = () => {
     );
 };
 
-export default StudentTabNavigator;
+export default AdminTabNavigator;
