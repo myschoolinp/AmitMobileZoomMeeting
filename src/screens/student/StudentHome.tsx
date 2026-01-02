@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     ScrollView,
     ActivityIndicator,
+    RefreshControl,
 } from 'react-native';
 import { getUser } from '../../utils/storage';
 import { useIsFocused } from '@react-navigation/native';
@@ -16,36 +17,51 @@ const StudentHome = ({ navigation }: any) => {
     const [announcement, setAnnouncement] = useState<any>({});
     const [contact, setContact] = useState<any>({});
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const isFocused = useIsFocused();
-    const db = getFirestore();
-    useEffect(() => {
-        const fetchUser = async () => {
-            const storedUser = await getUser();
-            if (storedUser) setUser(storedUser);
-        };
 
-        if (isFocused) {
-            fetchUser();
-        }
-    }, [isFocused]);
+    const fetchUserData = async () => {
+        const storedUser = await getUser();
+        if (storedUser) setUser(storedUser);
+    };
 
-    // Fetch announcement & contact
-    useEffect(() => {
-        const fetchSettings = async () => {
-            const announcementSnap = await getDoc(doc(db, 'settings', 'announcement'));
-            if (announcementSnap.exists()) {
-                setAnnouncement(announcementSnap.data());
+    const fetchAppInfo = async () => {
+        setLoading(true);
+        try {
+            const db = getFirestore();
+
+            // Announcement
+            const annSnap = await getDoc(doc(db, 'settings', 'announcement'));
+            if (annSnap.exists()) {
+                setAnnouncement(annSnap.data());
                 setLoading(false);
             }
 
+            // Contact
             const contactSnap = await getDoc(doc(db, 'settings', 'contact'));
-            if (contactSnap.exists()) {
-                setContact(contactSnap.data());
-            }
-        };
-        fetchSettings();
+            if (contactSnap.exists()) setContact(contactSnap.data());
+
+        } catch (error: any) {
+            console.log('Error fetching app info:', error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchUserData();
+        await fetchAppInfo();
+        setRefreshing(false);
     }, []);
+
+    useEffect(() => {
+        if (isFocused) {
+            fetchUserData();
+            fetchAppInfo();
+        }
+    }, [isFocused]);
 
     const navCards = [
         { name: 'Batch', icon: 'people-outline', color: '#28a745' },
@@ -62,7 +78,12 @@ const StudentHome = ({ navigation }: any) => {
     }
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
+        <ScrollView
+            contentContainerStyle={styles.container}
+            refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#007AFF" />
+            }
+        >
             {/* Welcome */}
             <Text style={styles.welcomeText}>Welcome {user.name}👋</Text>
             <Text style={styles.subText}>Glad to see you back!</Text>
@@ -116,6 +137,7 @@ const StudentHome = ({ navigation }: any) => {
                     </>
                 )}
             </View>
+
         </ScrollView>
     );
 };
