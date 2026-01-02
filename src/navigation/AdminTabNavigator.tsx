@@ -14,8 +14,8 @@ const AdminTabNavigator = () => {
 
         <Tab.Navigator
             screenOptions={{
-                headerTitle: 'Amit Training Institute',
-                headerTitleAlign: 'center',
+                headerTitle: 'Amit Mobile & Training Center',
+                headerTitleAlign: 'left',
                 headerStyle: {
                     backgroundColor: '#007AFF', // Blue background
                 },
@@ -49,7 +49,9 @@ const AdminTabNavigator = () => {
                                 )
                             }
                         >
-                            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Logout</Text>
+                            <Text style={{ color: '#fff', fontSize: 16 }}>
+                                Logout
+                            </Text>
                         </TouchableOpacity>
                     );
                 },
@@ -62,20 +64,40 @@ const AdminTabNavigator = () => {
             <Tab.Screen
                 name="Home"
                 component={AdminHome}
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <Text style={{ fontSize: 18, color }}>🏠</Text>
+                    ),
+                }}
 
             />
             <Tab.Screen
                 name="Batch"
                 component={AdminBatches}
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <Text style={{ fontSize: 18, color }}>👥</Text>
+                    ),
+                }}
 
             />
             <Tab.Screen
                 name="Courses"
                 component={AdminCourses}
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <Text style={{ fontSize: 18, color }}>📚</Text>
+                    ),
+                }}
             />
             <Tab.Screen
                 name="Profile"
                 component={StudentProfile}
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <Text style={{ fontSize: 18, color }}>👤</Text>
+                    ),
+                }}
 
             />
         </Tab.Navigator>

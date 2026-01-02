@@ -14,8 +14,8 @@ const StudentTabNavigator = () => {
 
         <Tab.Navigator
             screenOptions={{
-                headerTitle: 'Amit Training Institute',
-                headerTitleAlign: 'center',
+                headerTitle: 'Amit Mobile & Training Center',
+                headerTitleAlign: 'left',
                 headerStyle: {
                     backgroundColor: '#007AFF', // Blue background
                 },
@@ -49,7 +49,11 @@ const StudentTabNavigator = () => {
                                 )
                             }
                         >
-                            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Logout</Text>
+                            <Text style={{ color: '#fff', fontSize: 16 }}>
+                                Logout
+                            </Text>
+
+
                         </TouchableOpacity>
                     );
                 },
@@ -62,23 +66,43 @@ const StudentTabNavigator = () => {
             <Tab.Screen
                 name="Home"
                 component={StudentHome}
-
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <Text style={{ fontSize: 18, color }}>🏠</Text>
+                    ),
+                }}
             />
+
             <Tab.Screen
                 name="Batch"
                 component={StudentBatch}
-
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <Text style={{ fontSize: 18, color }}>👥</Text>
+                    ),
+                }}
             />
+
             <Tab.Screen
                 name="Courses"
                 component={StudentCourses}
-
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <Text style={{ fontSize: 18, color }}>📚</Text>
+                    ),
+                }}
             />
+
             <Tab.Screen
                 name="Profile"
                 component={StudentProfile}
-
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <Text style={{ fontSize: 18, color }}>👤</Text>
+                    ),
+                }}
             />
+
         </Tab.Navigator>
     );
 };

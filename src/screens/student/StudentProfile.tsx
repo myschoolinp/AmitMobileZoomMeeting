@@ -22,6 +22,7 @@ const StudentProfile = () => {
     const [address, setAddress] = useState('');
     const [dob, setDob] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [confirmPassword, setConfirmPassword] = useState('');
 
     // Validation errors
     const [errors, setErrors] = useState<any>({});
@@ -53,7 +54,18 @@ const StudentProfile = () => {
         if (!mobile.trim()) newErrors.mobile = 'Mobile number is required';
         else if (!/^\d{10}$/.test(mobile)) newErrors.mobile = 'Mobile must be 10 digits';
         if (!address.trim()) newErrors.address = 'Address is required';
+        // 🔐 Password validation ONLY if user is trying to change it
+        if (password.trim().length > 0) {
+            if (password.length < 6) {
+                newErrors.password = 'Minimum 6 characters required';
+            }
 
+            if (!confirmPassword.trim()) {
+                newErrors.confirmPassword = 'Confirm password is required';
+            } else if (password !== confirmPassword) {
+                newErrors.confirmPassword = 'Passwords do not match';
+            }
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -64,13 +76,19 @@ const StudentProfile = () => {
         try {
             const db = getFirestore();
             const userRef = doc(db, "users", email);
-
-            await updateDoc(userRef, {
+            // Base update object
+            const updateData: any = {
                 name,
                 mobile,
                 address,
-                password,
-            });
+            };
+
+            // 🔐 Only update password if user entered it
+            if (password.trim().length > 0) {
+                updateData.password = password;
+            }
+            await updateDoc(userRef, updateData);
+
             updateMessage('Your profile has been successfully updated!');
 
             // Update AsyncStorage without password
@@ -121,16 +139,7 @@ const StudentProfile = () => {
                 editable={false}
             />
 
-            {/* Password */}
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-                style={[styles.input, errors.password && styles.errorInput]}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder="Enter Password"
-            />
-            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+
 
             {/* Address */}
             <Text style={styles.label}>Address</Text>
@@ -162,6 +171,28 @@ const StudentProfile = () => {
                     onChange={onChangeDate}
                 />
             )} */}
+            {/* Password */}
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+                style={[styles.input, errors.password && styles.errorInput]}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholder="Enter Password"
+            />
+            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+            {/* Confirm Password */}
+            <Text style={styles.label}>Confirm Password</Text>
+            <TextInput
+                style={[styles.input, errors.confirmPassword && styles.errorInput]}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                placeholder="Confirm Password"
+            />
+            {errors.confirmPassword && (
+                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+            )}
 
             {/* Update Button */}
             <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   TextInput,
@@ -9,10 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet
+  StyleSheet,
+  ActivityIndicator,
+  Keyboard
 } from 'react-native';
-import { doc, setDoc, collection, query, where, getDoc, getFirestore } from '@react-native-firebase/firestore';
-import { saveUser } from '../utils/storage';
+import { doc, setDoc, collection, query, where, getDoc, getFirestore, getDocs } from '@react-native-firebase/firestore';
+import { saveUser, simpleHash } from '../utils/storage';
 type Props = {
   navigation: any;
 };
@@ -21,68 +23,80 @@ const LoginScreen = ({ navigation }: Props) => {
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [identifier, setIdentifier] = useState(''); // email OR mobile
+  const passwordRef = useRef<TextInput>(null);
+  const [loading, setLoading] = useState(false);
 
 
 
 
   const handleLogin = async () => {
-    let isValid = true;
+    if (loading) return; // prevent double submit
 
-    // Reset errors
+    let isValid = true;
     setEmailError('');
     setPasswordError('');
 
-    if (!email.trim()) {
-      setEmailError('Email is required');
+    if (!identifier.trim()) {
+      setEmailError('Email or mobile number is required');
       isValid = false;
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        setEmailError('Enter a valid email address');
-        isValid = false;
-      }
     }
 
     if (!password.trim()) {
       setPasswordError('Password is required');
       isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      isValid = false;
     }
 
     if (!isValid) return;
+
     try {
+      setLoading(true);
+      Keyboard.dismiss();
+
       const db = getFirestore();
-      const userRef = doc(db, "users", email);
-      const userSnap = await getDoc(userRef);
+      const isEmail = identifier.includes('@');
 
-      if (!userSnap.exists()) {
-        Alert.alert('Invalid email or password');
+      const usersRef = collection(db, 'users');
+      const q = query(
+        usersRef,
+        where(isEmail ? 'email' : 'mobile', '==', identifier.trim())
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        Alert.alert('Invalid email/mobile or password');
         return;
       }
 
-      const userData: any = userSnap.data();
+      const userDoc = snapshot.docs[0];
+      const userData: any = userDoc.data();
 
-      if (userData && userData.password !== password) {
-        Alert.alert('Invalid email or password');
+      if (userData.password !== simpleHash(password)) {
+        Alert.alert('Invalid email/mobile or password');
         return;
       }
 
-      // Clear fields after login
-      setEmail('');
+      delete userData.password;
+
+      await saveUser({ id: userDoc.id, ...userData });
+
+      setIdentifier('');
       setPassword('');
-      delete userData.password; // Remove password before storing or using
-      saveUser(userData);
+
       if (userData.role === 'admin') {
         navigation.replace('AdminDashboard');
       } else {
         navigation.replace('StudentDashboard');
       }
     } catch (error: any) {
-      Alert.alert(error.message);
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false); // 🔥 always stop loader
     }
   };
+
+
 
 
 
@@ -98,7 +112,7 @@ const LoginScreen = ({ navigation }: Props) => {
           justifyContent: 'center',
           alignItems: 'center',
           padding: 20,
-          paddingBottom: 250
+          paddingBottom: 150
         }}
         keyboardShouldPersistTaps="handled"
       >
@@ -115,17 +129,19 @@ const LoginScreen = ({ navigation }: Props) => {
 
         {/* Form */}
         <View style={{ width: '100%' }}>
+
+
           <TextInput
-            placeholder="Email"
-            value={email}
+            placeholder="Email or Mobile Number"
+            value={identifier}
             onChangeText={(text) => {
-              setEmail(text);
+              setIdentifier(text);
               if (emailError) setEmailError('');
             }}
-            style={[
-              styles.input,
-              emailError ? styles.errorInput : null,
-            ]}
+            style={[styles.input, emailError && styles.errorInput]}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            blurOnSubmit={false}
           />
 
           {emailError ? (
@@ -134,6 +150,7 @@ const LoginScreen = ({ navigation }: Props) => {
 
 
           <TextInput
+            ref={passwordRef}
             placeholder="Password"
             value={password}
             onChangeText={(text) => {
@@ -141,11 +158,11 @@ const LoginScreen = ({ navigation }: Props) => {
               if (passwordError) setPasswordError('');
             }}
             secureTextEntry
-            style={[
-              styles.input,
-              passwordError ? styles.errorInput : null,
-            ]}
+            style={[styles.input, passwordError && styles.errorInput]}
+            returnKeyType="done"
+            onSubmitEditing={handleLogin}   // 🔥 LOGIN ON ENTER
           />
+
 
           {passwordError ? (
             <Text style={styles.errorText}>{passwordError}</Text>

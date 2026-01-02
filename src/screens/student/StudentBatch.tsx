@@ -1,131 +1,278 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
-    StyleSheet,
     FlatList,
     TouchableOpacity,
+    StyleSheet,
     Alert,
-    ScrollView,
+    Linking,
 } from 'react-native';
 
-// Dummy data for batches
-const batches = [
-    {
-        id: '1',
-        courseName: 'React Native Beginner',
-        startDate: '2025-02-01',
-        time: '10:00 AM - 12:00 PM',
-        fee: '$200',
-        maxSize: 20,
-    },
-    {
-        id: '2',
-        courseName: 'Advanced JavaScript',
-        startDate: '2025-02-05',
-        time: '2:00 PM - 4:00 PM',
-        fee: '$250',
-        maxSize: 25,
-    },
-    {
-        id: '3',
-        courseName: 'UI/UX Design',
-        startDate: '2025-02-10',
-        time: '11:00 AM - 1:00 PM',
-        fee: '$180',
-        maxSize: 15,
-    },
-];
+import {
+    getFirestore,
+    collection,
+    onSnapshot,
+    deleteDoc,
+    doc,
+    updateDoc,
+    arrayUnion,
+} from '@react-native-firebase/firestore';
 
-const StudentBatch = () => {
-    const handleSubscribe = (batchName: string) => {
-        Alert.alert('Subscribed', `You have subscribed to ${batchName}`);
+import { Timestamp } from 'firebase/firestore';
+import { getUser } from '../../utils/storage';
+
+
+const StudentBatch = ({ navigation }: any) => {
+    const [batches, setBatches] = useState<any[]>([]);
+    const [subscribedBatchIds, setSubscribedBatchIds] = useState<string[]>([]);
+    useEffect(() => {
+        const loadSubscribedBatches = async () => {
+            const user = await getUser();
+            if (!user?.id) return;
+
+            const userRef = doc(db, 'users', user.id);
+            const userSnap: any = await userRef.get();
+
+            if (userSnap && userSnap.exists) {
+                const data = userSnap.data();
+                setSubscribedBatchIds(data?.subscribedBatches || []);
+            }
+        };
+
+        loadSubscribedBatches();
+    }, []);
+
+
+    useEffect(() => {
+        const db = getFirestore();
+
+        const unsub = onSnapshot(collection(db, 'batches'), snapshot => {
+            const list = snapshot.docs.map((doc: any) => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+            setBatches(list);
+        });
+
+        return () => unsub();
+    }, []);
+
+
+    const db = getFirestore();
+
+    const subscribeBatch = async (batch: any) => {
+        try {
+            const user = await getUser();
+            if (!user?.id) return;
+
+            const userRef = doc(db, 'users', user.id);
+
+            await updateDoc(userRef, {
+                subscribedBatches: arrayUnion(batch.id),
+            });
+
+            // ✅ Update UI instantly
+            setSubscribedBatchIds(prev => [...prev, batch.id]);
+
+            Alert.alert('Success', 'Batch subscribed successfully');
+        } catch (error: any) {
+            Alert.alert('Error', error.message);
+        }
     };
 
-    const renderBatchCard = ({ item }: any) => (
-        <View style={styles.card}>
-            <Text style={styles.courseName}>{item.courseName}</Text>
-            <Text style={styles.detail}>📅 Start Date: {item.startDate}</Text>
-            <Text style={styles.detail}>⏰ Time: {item.time}</Text>
-            <Text style={styles.detail}>💵 Fee: {item.fee}</Text>
-            <Text style={styles.detail}>👥 Max Batch Size: {item.maxSize}</Text>
 
-            <TouchableOpacity
-                style={styles.subscribeButton}
-                onPress={() => handleSubscribe(item.courseName)}
-            >
-                <Text style={styles.subscribeText}>Subscribe</Text>
-            </TouchableOpacity>
-        </View>
-    );
+    const formatDate = (dateField: any) => {
+        if (!dateField) return '';
+
+        // Firestore Timestamp
+        if (dateField instanceof Timestamp) {
+            const dateCopy = dateField.toDate();
+            return dateCopy.toDateString(); // or toLocaleDateString()
+        }
+
+        // Plain JS Date
+        if (dateField instanceof Date) {
+            const dateCopy = new Date(dateField.getTime()); // make a copy
+            return dateCopy.toDateString();
+        }
+
+        // If it's a string (already formatted)
+        if (typeof dateField === 'string') {
+            return dateField;
+        }
+
+        // If it's a Firestore timestamp object but not instance
+        if (dateField._seconds) {
+            const dateCopy = new Date(dateField._seconds * 1000);
+            return dateCopy.toDateString();
+        }
+
+        return ''; // fallback
+    };
+
+
+    const formatTime = (timeField: any) => {
+        if (!timeField) return '';
+
+        if (timeField instanceof Timestamp) {
+            const timeCopy = timeField.toDate();
+            return timeCopy.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        if (timeField instanceof Date) {
+            const timeCopy = new Date(timeField.getTime());
+            return timeCopy.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        if (typeof timeField === 'string') {
+            return timeField;
+        }
+
+        if (timeField._seconds) {
+            const timeCopy = new Date(timeField._seconds * 1000);
+            return timeCopy.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        return '';
+    };
+
+    const renderItem = ({ item }: any) => {
+        const isSubscribed = subscribedBatchIds.includes(item.id);
+
+        return (
+            <View style={styles.card}>
+                <Text style={styles.title}>{item.topic}</Text>
+                <Text>{item.description}</Text>
+
+                <View style={styles.rowContainer}>
+                    <View style={styles.leftColumn}>
+                        <Text>📅 Date: {formatDate(item.date)}</Text>
+                        <Text>⏰ Time: {formatTime(item.time)}</Text>
+                        <Text>⏳ Duration: {item.duration}</Text>
+                    </View>
+
+                    <View style={styles.rightColumn}>
+                        <Text>👥 Batch Size: {item.batchSize}</Text>
+                        <Text>💰 Fee: ₹{item.fee}</Text>
+                    </View>
+                </View>
+
+                <View style={styles.row}>
+                    <TouchableOpacity
+                        style={[
+                            styles.startBtn,
+                            isSubscribed && styles.subscribedBtn,
+                        ]}
+                        onPress={() => subscribeBatch(item)}
+                        disabled={isSubscribed}
+                    >
+                        <Text style={styles.btnText}>
+                            {isSubscribed ? 'Subscribed' : 'Subscribe'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    };
+
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.header}>Upcoming Batches</Text>
+        <View style={styles.container}>
+
+            {/* Batch List */}
             <FlatList
                 data={batches}
                 keyExtractor={(item) => item.id}
-                renderItem={renderBatchCard}
-                contentContainerStyle={styles.listContainer}
+                renderItem={renderItem}
                 showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 30 }}
             />
-        </ScrollView>
+        </View>
     );
 };
 const styles = StyleSheet.create({
     container: {
-        padding: 16,
+        flex: 1,
         backgroundColor: '#f5f6fa',
-        paddingBottom: 50,
+        padding: 16,
     },
 
-    header: {
-        fontSize: 22,
+    addButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 14,
+        borderRadius: 10,
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+
+    addText: {
+        color: '#fff',
+        fontSize: 16,
         fontWeight: 'bold',
-        marginBottom: 15,
-    },
-
-    listContainer: {
-        paddingBottom: 20,
     },
 
     card: {
         backgroundColor: '#fff',
-        borderRadius: 12,
         padding: 16,
-        marginBottom: 15,
-        elevation: 3, // Android shadow
-        shadowColor: '#000', // iOS shadow
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
+        borderRadius: 12,
+        marginBottom: 16,
+        elevation: 3,
     },
 
-    courseName: {
+    title: {
         fontSize: 18,
         fontWeight: 'bold',
-        marginBottom: 8,
+        marginBottom: 6,
     },
 
-    detail: {
-        fontSize: 14,
-        marginBottom: 4,
+    desc: {
         color: '#555',
+        marginBottom: 6,
     },
 
-    subscribeButton: {
+    row: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         marginTop: 12,
-        backgroundColor: '#007AFF',
-        paddingVertical: 10,
-        borderRadius: 8,
-        alignItems: 'center',
     },
 
-    subscribeText: {
+    startBtn: {
+        backgroundColor: '#2D8CFF',
+        padding: 8,
+        borderRadius: 6,
+    },
+
+    btnText: {
         color: '#fff',
         fontWeight: '600',
-        fontSize: 16,
+        fontSize: 12,
     },
+    rowRight: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',  // Push items to the right
+        gap: 20,                     // Space between batch size and fee
+        marginTop: 8,
+    },
+    rowContainer: {
+        flexDirection: 'row',
+        marginTop: 12,
+    },
+
+    leftColumn: {
+        flex: 1,
+        justifyContent: 'flex-start',
+    },
+
+    rightColumn: {
+        flex: 1,
+        alignItems: 'flex-start', // aligns text to right inside the right column
+        justifyContent: 'flex-start',
+    },
+    subscribedBtn: {
+        backgroundColor: '#9e9e9e',
+    }
 });
+
 
 export default StudentBatch;

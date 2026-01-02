@@ -17,3 +17,12 @@ export const getUser = async () => {
 export const clearUser = async () => {
     await AsyncStorage.removeItem(USER_KEY);
 };
+
+export const simpleHash = (value: string) => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i++) {
+        hash = (hash << 5) - hash + value.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash.toString();
+};

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { doc, setDoc, collection, query, where, getDocs, getFirestore } from '@react-native-firebase/firestore';
+import { simpleHash } from '../utils/storage';
 const RegisterScreen = ({ navigation }: any) => {
     const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -23,6 +24,7 @@ const RegisterScreen = ({ navigation }: any) => {
         dob: '',
         address: '',
         password: '',
+        confirmPassword: ''
     });
 
     const [errors, setErrors] = useState<any>({});
@@ -75,6 +77,13 @@ const RegisterScreen = ({ navigation }: any) => {
             newErrors.password = 'Minimum 6 characters required';
             valid = false;
         }
+        if (!form.confirmPassword.trim()) {
+            newErrors.confirmPassword = 'Confirm password is required';
+            valid = false;
+        } else if (form.password !== form.confirmPassword) {
+            newErrors.confirmPassword = 'Passwords do not match';
+            valid = false;
+        }
 
         setErrors(newErrors);
         return valid;
@@ -100,14 +109,10 @@ const RegisterScreen = ({ navigation }: any) => {
             }
 
             const docId = form.email.toLowerCase();
-
+            const { confirmPassword, ...dataToSave } = form;
+            dataToSave.password = simpleHash(dataToSave.password);
             await setDoc(doc(db, "users", docId), {
-                name: form.name,
-                email: form.email,
-                mobile: form.mobile,
-                dob: form.dob,
-                password: form.password,
-                address: form.address,
+                ...dataToSave,
                 role: "student",
                 createdAt: Date.now(),
             });
@@ -204,6 +209,19 @@ const RegisterScreen = ({ navigation }: any) => {
                 {errors.password && (
                     <Text style={styles.errorText}>{errors.password}</Text>
                 )}
+
+                <TextInput
+                    placeholder="Confirm Password"
+                    value={form.confirmPassword}
+                    onChangeText={(t) => handleChange('confirmPassword', t)}
+                    secureTextEntry
+                    style={[styles.input, errors.confirmPassword && styles.errorInput]}
+                />
+
+                {errors.confirmPassword && (
+                    <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+                )}
+
 
                 <Button title="Register" onPress={handleRegister} />
             </ScrollView>

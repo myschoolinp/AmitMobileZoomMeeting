@@ -44,8 +44,20 @@ const AddBatchScreen = ({ navigation, route }: any) => {
   useEffect(() => {
     if (batch) {
       setTopic(batch.topic);
-      setDate(batch.date);
-      setTime(batch.time);
+      if (batch.date instanceof Timestamp) {
+        setDate(batch.date.toDate()); // ✅ convert once
+      } else if (batch.date instanceof Date) {
+        setDate(new Date(batch.date));
+      } else if (typeof batch.date === 'string') {
+        setDate(new Date(batch.date));
+      }
+      if (batch.time instanceof Timestamp) {
+        setTime(batch.time.toDate());
+      } else if (batch.time instanceof Date) {
+        setTime(new Date(batch.time));
+      } else if (typeof batch.time === 'string') {
+        setTime(new Date(batch.time));
+      }
       setDuration(batch.duration);
       setDescription(batch.description);
       setZoomLink(batch.zoomLink);

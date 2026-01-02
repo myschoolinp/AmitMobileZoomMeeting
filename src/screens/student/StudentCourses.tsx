@@ -1,128 +1,183 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
-    StyleSheet,
     FlatList,
     TouchableOpacity,
+    StyleSheet,
+    Linking,
     Alert,
-    ScrollView,
 } from 'react-native';
 
-// Dummy subscribed courses data
-const subscribedCourses = [
-    {
-        id: '1',
-        courseName: 'React Native Beginner',
-        startDate: '2025-02-01',
-        time: '10:00 AM - 12:00 PM',
-        instructor: 'John Doe',
-    },
-    {
-        id: '2',
-        courseName: 'Advanced JavaScript',
-        startDate: '2025-02-05',
-        time: '2:00 PM - 4:00 PM',
-        instructor: 'Jane Smith',
-    },
-    {
-        id: '3',
-        courseName: 'UI/UX Design',
-        startDate: '2025-02-10',
-        time: '11:00 AM - 1:00 PM',
-        instructor: 'Alice Brown',
-    },
-];
+import {
+    getFirestore,
+    doc,
+    getDoc,
+    collection,
+    where,
+    query,
+    getDocs,
+} from '@react-native-firebase/firestore';
+
+import { Timestamp } from 'firebase/firestore';
+import { getUser } from '../../utils/storage';
 
 const StudentCourses = () => {
-    const handleJoinMeeting = (courseName: string) => {
-        Alert.alert('Join Meeting', `Joining meeting for ${courseName}`);
-        // Here you can integrate real meeting link or navigation
+    const [courses, setCourses] = useState<any[]>([]);
+    const db = getFirestore();
+
+    useEffect(() => {
+        loadCourses();
+    }, []);
+
+    const loadCourses = async () => {
+        const user = await getUser();
+        if (!user?.id) return;
+
+        const userRef = doc(db, 'users', user.id);
+        const userSnap = await getDoc(userRef);
+        const subscribedIds = userSnap.data()?.subscribedBatches || [];
+
+        if (subscribedIds.length === 0) return;
+
+        const q = query(
+            collection(db, 'batches'),
+            where('__name__', 'in', subscribedIds)
+        );
+
+        const snapshot = await getDocs(q);
+        const list = snapshot.docs.map((doc: any) => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+
+        setCourses(list);
     };
 
-    const renderCourseCard = ({ item }: any) => (
+    /* ---------- FORMATTERS ---------- */
+
+    const formatDate = (dateField: any) => {
+        if (!dateField) return '';
+        if (dateField instanceof Timestamp) return dateField.toDate().toDateString();
+        if (dateField instanceof Date) return dateField.toDateString();
+        if (dateField._seconds)
+            return new Date(dateField._seconds * 1000).toDateString();
+        return dateField;
+    };
+
+    const formatTime = (timeField: any) => {
+        if (!timeField) return '';
+        if (timeField instanceof Timestamp)
+            return timeField.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (timeField instanceof Date)
+            return timeField.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (timeField._seconds)
+            return new Date(timeField._seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return timeField;
+    };
+
+    /* ---------- JOIN MEETING ---------- */
+
+    const joinMeeting = async (link: string) => {
+
+        if (!link) {
+            Alert.alert('Error', 'Zoom link not available');
+            return;
+        }
+
+        const supported = await Linking.canOpenURL(link);
+        if (supported) {
+            Linking.openURL(link);
+        } else {
+            Alert.alert('Error', 'Invalid Zoom link');
+        }
+    };
+    /* ---------- UI ---------- */
+
+    const renderItem = ({ item }: any) => (
         <View style={styles.card}>
-            <Text style={styles.courseName}>{item.courseName}</Text>
-            <Text style={styles.detail}>📅 Start Date: {item.startDate}</Text>
-            <Text style={styles.detail}>⏰ Time: {item.time}</Text>
-            <Text style={styles.detail}>👨‍🏫 Instructor: {item.instructor}</Text>
+            <Text style={styles.title}>{item.topic}</Text>
+            <Text style={styles.desc}>{item.description}</Text>
+
+            {/* LEFT / RIGHT DETAILS */}
+            <View style={styles.rowContainer}>
+                <View style={styles.leftColumn}>
+                    <Text>📅 {formatDate(item.date)}</Text>
+                    <Text>⏰ {formatTime(item.time)}</Text>
+                    <Text>⏳ {item.duration}</Text>
+                </View>
+
+                <View style={styles.rightColumn}>
+                    <Text>👥 {item.batchSize}</Text>
+                    <Text>💰 ₹{item.fee}</Text>
+                </View>
+            </View>
 
             <TouchableOpacity
-                style={styles.joinButton}
-                onPress={() => handleJoinMeeting(item.courseName)}
+                style={styles.joinBtn}
+                onPress={() => joinMeeting(item.zoomLink)}
             >
-                <Text style={styles.joinText}>Join Meeting</Text>
+                <Text style={styles.btnText}>Join Meeting</Text>
             </TouchableOpacity>
         </View>
     );
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.header}>Subscribed Courses</Text>
-
-            <FlatList
-                data={subscribedCourses}
-                keyExtractor={(item) => item.id}
-                renderItem={renderCourseCard}
-                contentContainerStyle={styles.listContainer}
-                showsVerticalScrollIndicator={false}
-            />
-        </ScrollView>
+        <FlatList
+            data={courses}
+            keyExtractor={item => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={{ padding: 16 }}
+            showsVerticalScrollIndicator={false}
+        />
     );
 };
 const styles = StyleSheet.create({
-    container: {
-        padding: 16,
-        backgroundColor: '#f5f6fa',
-        paddingBottom: 50,
-    },
-
-    header: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        marginBottom: 15,
-    },
-
-    listContainer: {
-        paddingBottom: 20,
-    },
-
     card: {
         backgroundColor: '#fff',
-        borderRadius: 12,
         padding: 16,
-        marginBottom: 15,
-        elevation: 3, // Android shadow
-        shadowColor: '#000', // iOS shadow
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
+        borderRadius: 12,
+        marginBottom: 16,
+        elevation: 3,
     },
 
-    courseName: {
+    title: {
         fontSize: 18,
         fontWeight: 'bold',
+        marginBottom: 4,
+    },
+
+    desc: {
+        color: '#555',
         marginBottom: 8,
     },
 
-    detail: {
-        fontSize: 14,
-        marginBottom: 4,
-        color: '#555',
+    rowContainer: {
+        flexDirection: 'row',
+        marginTop: 8,
     },
 
-    joinButton: {
-        marginTop: 12,
-        backgroundColor: '#28a745',
-        paddingVertical: 10,
-        borderRadius: 8,
+    leftColumn: {
+        flex: 1,
+    },
+
+    rightColumn: {
+        flex: 1,
+        alignItems: 'flex-start',
+    },
+
+    joinBtn: {
+        backgroundColor: '#2D8CFF',
+        paddingVertical: 12,
+        borderRadius: 10,
+        marginTop: 16,
         alignItems: 'center',
     },
 
-    joinText: {
+    btnText: {
         color: '#fff',
         fontWeight: '600',
-        fontSize: 16,
+        fontSize: 14,
     },
 });
 

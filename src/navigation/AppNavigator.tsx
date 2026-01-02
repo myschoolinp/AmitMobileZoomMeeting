@@ -17,6 +17,7 @@ const AppNavigator = () => {
         <Stack.Screen name="AuthLoading" component={AuthLoading} />
         <Stack.Screen name="Login" component={LoginScreen} options={{
           title: 'Login',
+          headerShown: false,
           headerTitleAlign: 'center', // ✅ center horizontally
         }} />
         <Stack.Screen
