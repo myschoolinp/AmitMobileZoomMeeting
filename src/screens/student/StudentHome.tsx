@@ -11,13 +11,14 @@ import {
 import { getUser } from '../../utils/storage';
 import { useIsFocused } from '@react-navigation/native';
 import { getFirestore, doc, getDoc } from '@react-native-firebase/firestore';
+import { useLoader } from '../../context/LoaderContext';
 
 const StudentHome = ({ navigation }: any) => {
     const [user, setUser] = useState<any>({});
     const [announcement, setAnnouncement] = useState<any>({});
     const [contact, setContact] = useState<any>({});
-    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const { showLoader, hideLoader } = useLoader();
 
     const isFocused = useIsFocused();
 
@@ -27,7 +28,7 @@ const StudentHome = ({ navigation }: any) => {
     };
 
     const fetchAppInfo = async () => {
-        setLoading(true);
+        showLoader();
         try {
             const db = getFirestore();
 
@@ -35,7 +36,7 @@ const StudentHome = ({ navigation }: any) => {
             const annSnap = await getDoc(doc(db, 'settings', 'announcement'));
             if (annSnap.exists()) {
                 setAnnouncement(annSnap.data());
-                setLoading(false);
+                hideLoader();
             }
 
             // Contact
@@ -45,7 +46,7 @@ const StudentHome = ({ navigation }: any) => {
         } catch (error: any) {
             console.log('Error fetching app info:', error.message);
         } finally {
-            setLoading(false);
+            hideLoader();
         }
     };
 
@@ -69,13 +70,6 @@ const StudentHome = ({ navigation }: any) => {
         { name: 'Profile', icon: 'person-outline', color: '#ff9500' },
     ];
 
-    if (loading) {
-        return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#007AFF" />
-            </View>
-        );
-    }
 
     return (
         <ScrollView

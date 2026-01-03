@@ -85,12 +85,12 @@ const StudentCourses = () => {
             return;
         }
 
-        const supported = await Linking.canOpenURL(link);
-        if (supported) {
-            Linking.openURL(link);
-        } else {
-            Alert.alert('Error', 'Invalid Zoom link');
+        try {
+            await Linking.openURL(link);
+        } catch (error) {
+            Alert.alert('Error', 'Unable to open Zoom link');
         }
+
     };
     /* ---------- UI ---------- */
 

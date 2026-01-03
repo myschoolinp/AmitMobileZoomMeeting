@@ -87,6 +87,7 @@ const StudentTabNavigator = () => {
                 name="Courses"
                 component={StudentCourses}
                 options={{
+                    tabBarLabel: 'My Courses',
                     tabBarIcon: ({ color }) => (
                         <Text style={{ fontSize: 18, color }}>📚</Text>
                     ),

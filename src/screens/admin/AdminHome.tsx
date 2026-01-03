@@ -15,6 +15,7 @@ import {
     getDoc,
     setDoc,
 } from '@react-native-firebase/firestore';
+import { useLoader } from '../../context/LoaderContext';
 
 const AdminHome = ({ navigation }: any) => {
     const [user, setUser] = useState<any>({});
@@ -26,6 +27,8 @@ const AdminHome = ({ navigation }: any) => {
     const [modalTitle, setModalTitle] = useState('');
     const [modalField, setModalField] = useState('');
     const [modalType, setModalType] = useState<'announcement' | 'contact'>('announcement');
+    const { showLoader, hideLoader } = useLoader();
+
     const db = getFirestore();
     useEffect(() => {
         const fetchUser = async () => {
@@ -61,7 +64,21 @@ const AdminHome = ({ navigation }: any) => {
             setModalField(announcement.message || '');
         } else {
             setModalTitle('Edit Contact');
-            setModalField(contact.name ? Object.values(contact).join(',') : '');
+            setModalField(
+                contact
+                    ? [
+                        contact.name,
+                        contact.line1,
+                        contact.line2,
+                        contact.cityState,
+                        contact.pincode,
+                        contact.phone,
+                        contact.email,
+                    ]
+                        .filter(Boolean) // removes undefined/null
+                        .join(',')
+                    : ''
+            );
         }
         setModalVisible(true);
     };
@@ -180,14 +197,20 @@ const AdminHome = ({ navigation }: any) => {
                                         const parts = modalField.split(',');
                                         if (parts.length < 6) { Alert.alert('Enter all contact fields separated by comma'); return; }
                                         const [name, line1, line2, cityState, pincode, phone, email] = parts;
+
+                                        showLoader();
                                         await setDoc(doc(db, 'settings', 'contact'), {
                                             name, line1, line2, cityState, pincode, phone, email
                                         });
+
+
                                         setContact({ name, line1, line2, cityState, pincode, phone, email });
                                     }
                                     setModalVisible(false);
+                                    hideLoader();
                                     Alert.alert('Success', 'Updated successfully');
                                 } catch (err: any) {
+                                    hideLoader();
                                     Alert.alert('Error', err.message);
                                 }
                             }} />

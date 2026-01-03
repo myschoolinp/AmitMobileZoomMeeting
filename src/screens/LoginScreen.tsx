@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { doc, setDoc, collection, query, where, getDoc, getFirestore, getDocs } from '@react-native-firebase/firestore';
 import { saveUser, simpleHash } from '../utils/storage';
+import { useLoader } from '../context/LoaderContext';
+
 type Props = {
   navigation: any;
 };
@@ -25,13 +27,12 @@ const LoginScreen = ({ navigation }: Props) => {
   const [passwordError, setPasswordError] = useState('');
   const [identifier, setIdentifier] = useState(''); // email OR mobile
   const passwordRef = useRef<TextInput>(null);
-  const [loading, setLoading] = useState(false);
+  const { showLoader, hideLoader } = useLoader();
 
 
 
 
   const handleLogin = async () => {
-    if (loading) return; // prevent double submit
 
     let isValid = true;
     setEmailError('');
@@ -50,7 +51,7 @@ const LoginScreen = ({ navigation }: Props) => {
     if (!isValid) return;
 
     try {
-      setLoading(true);
+      showLoader();
       Keyboard.dismiss();
 
       const db = getFirestore();
@@ -92,7 +93,7 @@ const LoginScreen = ({ navigation }: Props) => {
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
-      setLoading(false); // 🔥 always stop loader
+      hideLoader(); // 🔥 always stop loader
     }
   };
 
