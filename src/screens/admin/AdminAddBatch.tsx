@@ -97,6 +97,7 @@ const AddBatchScreen = ({ navigation, route }: any) => {
         batchSize: Number(batchSize),
         fee: Number(fee),
         updatedAt: Timestamp.now(),
+        meetingStatus: 'scheduled'
       };
 
       if (isEdit) {

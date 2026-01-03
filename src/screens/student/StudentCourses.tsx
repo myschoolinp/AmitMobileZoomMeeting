@@ -21,14 +21,18 @@ import {
 
 import { Timestamp } from 'firebase/firestore';
 import { getUser } from '../../utils/storage';
+import { useIsFocused } from '@react-navigation/native';
 
-const StudentCourses = () => {
+const StudentCourses = ({ navigation }: any) => {
     const [courses, setCourses] = useState<any[]>([]);
+    const isFocused = useIsFocused();
     const db = getFirestore();
 
     useEffect(() => {
-        loadCourses();
-    }, []);
+        if (isFocused) {
+            loadCourses();
+        }
+    }, [isFocused]);
 
     const loadCourses = async () => {
         const user = await getUser();
@@ -36,13 +40,13 @@ const StudentCourses = () => {
 
         const userRef = doc(db, 'users', user.id);
         const userSnap = await getDoc(userRef);
-        const subscribedIds = userSnap.data()?.subscribedBatches || [];
-
-        if (subscribedIds.length === 0) return;
+        const subscribedIds = userSnap.data()?.subscribedBatches || {};
+        const ids = Object.keys(subscribedIds)
+        if (ids.length === 0) return;
 
         const q = query(
             collection(db, 'batches'),
-            where('__name__', 'in', subscribedIds)
+            where('__name__', 'in', ids)
         );
 
         const snapshot = await getDocs(q);
@@ -94,35 +98,75 @@ const StudentCourses = () => {
     };
     /* ---------- UI ---------- */
 
-    const renderItem = ({ item }: any) => (
-        <View style={styles.card}>
-            <Text style={styles.title}>{item.topic}</Text>
-            <Text style={styles.desc}>{item.description}</Text>
+    const renderItem = ({ item }: any) => {
+        const meetingStatus = item.meetingStatus; // 'scheduled' | 'started' | 'ended'
 
-            {/* LEFT / RIGHT DETAILS */}
-            <View style={styles.rowContainer}>
-                <View style={styles.leftColumn}>
-                    <Text>📅 {formatDate(item.date)}</Text>
-                    <Text>⏰ {formatTime(item.time)}</Text>
-                    <Text>⏳ {item.duration}</Text>
+        // Determine button state and label
+        let btnText = 'Join Meeting';
+        let btnDisabled = false;
+        let btnColor = '#2D8CFF';
+
+        if (meetingStatus === 'scheduled') {
+            btnText = 'Meeting not yet started';
+            btnDisabled = true;
+            btnColor = '#aaa';
+        } else if (meetingStatus === 'started') {
+            btnText = 'Meeting started - Join';
+            btnDisabled = false;
+            btnColor = '#2D8CFF';
+        } else if (meetingStatus === 'ended') {
+            btnText = 'Meeting ended';
+            btnDisabled = true;
+            btnColor = '#aaa';
+        }
+
+        return (
+            <View style={styles.card}>
+                <Text style={styles.title}>{item.topic}</Text>
+                <Text style={styles.desc}>{item.description}</Text>
+
+                {/* LEFT / RIGHT DETAILS */}
+                <View style={styles.rowContainer}>
+                    <View style={styles.leftColumn}>
+                        <Text>📅 {formatDate(item.date)}</Text>
+                        <Text>⏰ {formatTime(item.time)}</Text>
+                        <Text>⏳ {item.duration}</Text>
+                    </View>
+
+                    <View style={styles.rightColumn}>
+                        <Text>👥 {item.batchSize}</Text>
+                        <Text>💰 ₹{item.fee}</Text>
+                    </View>
                 </View>
 
-                <View style={styles.rightColumn}>
-                    <Text>👥 {item.batchSize}</Text>
-                    <Text>💰 ₹{item.fee}</Text>
-                </View>
+                <TouchableOpacity
+                    style={[styles.joinBtn, { backgroundColor: btnColor }]}
+                    onPress={() => !btnDisabled && joinMeeting(item.zoomLink)}
+                    disabled={btnDisabled}
+                >
+                    <Text style={styles.btnText}>{btnText}</Text>
+                </TouchableOpacity>
             </View>
+        );
+    };
+
+
+
+    return courses.length === 0 ? (
+        <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+                You have not subscribed to any courses. {'\n'}
+                Go to the Batch section and subscribe to start learning.
+            </Text>
 
             <TouchableOpacity
-                style={styles.joinBtn}
-                onPress={() => joinMeeting(item.zoomLink)}
+                style={styles.goBatchBtn}
+                onPress={() => navigation.navigate('Batch')}
             >
-                <Text style={styles.btnText}>Join Meeting</Text>
+                <Text style={styles.goBatchBtnText}>Go to Batch</Text>
             </TouchableOpacity>
         </View>
-    );
-
-    return (
+    ) : (
         <FlatList
             data={courses}
             keyExtractor={item => item.id}
@@ -131,6 +175,8 @@ const StudentCourses = () => {
             showsVerticalScrollIndicator={false}
         />
     );
+
+
 };
 const styles = StyleSheet.create({
     card: {
@@ -179,6 +225,33 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontSize: 14,
     },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+
+    emptyText: {
+        fontSize: 16,
+        color: '#555',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+
+    goBatchBtn: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 25,
+        borderRadius: 10,
+    },
+
+    goBatchBtnText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+
 });
 
 export default StudentCourses;

@@ -17,6 +17,7 @@ import {
     doc,
     updateDoc,
     arrayUnion,
+    getDoc,
 } from '@react-native-firebase/firestore';
 
 import { Timestamp } from 'firebase/firestore';
@@ -26,21 +27,23 @@ import { getUser } from '../../utils/storage';
 const StudentBatch = ({ navigation }: any) => {
     const [batches, setBatches] = useState<any[]>([]);
     const [subscribedBatchIds, setSubscribedBatchIds] = useState<string[]>([]);
+    const [subscribedBatches, setSubscribedBatches] = useState<any>({});
+
+
     useEffect(() => {
-        const loadSubscribedBatches = async () => {
+        const fetchUserSubscriptions = async () => {
             const user = await getUser();
             if (!user?.id) return;
 
             const userRef = doc(db, 'users', user.id);
-            const userSnap: any = await userRef.get();
+            const snap: any = await getDoc(userRef);
 
-            if (userSnap && userSnap.exists) {
-                const data = userSnap.data();
-                setSubscribedBatchIds(data?.subscribedBatches || []);
+            if (snap.exists()) {
+                setSubscribedBatches(snap.data().subscribedBatches || {});
             }
         };
 
-        loadSubscribedBatches();
+        fetchUserSubscriptions();
     }, []);
 
 
@@ -62,23 +65,43 @@ const StudentBatch = ({ navigation }: any) => {
     const db = getFirestore();
 
     const subscribeBatch = async (batch: any) => {
-        try {
-            const user = await getUser();
-            if (!user?.id) return;
+        Alert.alert(
+            'Subscribe',
+            'Do you want to subscribe to this batch?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Yes',
+                    onPress: async () => {
+                        try {
+                            const user = await getUser();
+                            if (!user?.id) return;
 
-            const userRef = doc(db, 'users', user.id);
+                            const subscribedOn = Timestamp.now();
 
-            await updateDoc(userRef, {
-                subscribedBatches: arrayUnion(batch.id),
-            });
+                            const userRef = doc(db, 'users', user.id);
 
-            // ✅ Update UI instantly
-            setSubscribedBatchIds(prev => [...prev, batch.id]);
+                            await updateDoc(userRef, {
+                                [`subscribedBatches.${batch.id}`]: {
+                                    subscribedOn,
+                                },
+                            });
 
-            Alert.alert('Success', 'Batch subscribed successfully');
-        } catch (error: any) {
-            Alert.alert('Error', error.message);
-        }
+                            // 🔥 IMMEDIATE UI UPDATE
+                            setSubscribedBatches((prev: any) => ({
+                                ...prev,
+                                [batch.id]: { subscribedOn },
+                            }));
+
+                            Alert.alert('Success', 'Batch subscribed successfully');
+                        } catch (error: any) {
+                            Alert.alert('Error', error.message);
+                        }
+                    },
+                },
+            ],
+            { cancelable: true }
+        );
     };
 
 
@@ -136,9 +159,33 @@ const StudentBatch = ({ navigation }: any) => {
 
         return '';
     };
+    const isSubscribed = (batchId: string) =>
+        !!subscribedBatches?.[batchId];
+
+    const getSubscribedDate = (batchId: string) =>
+        formatSubscribedDate(subscribedBatches?.[batchId]?.subscribedOn);
+    const formatSubscribedDate = (value: any) => {
+        if (!value) return '';
+
+        // Firestore Timestamp
+        if (value.toDate) {
+            return value.toDate().toDateString();
+        }
+
+        // Firestore serialized timestamp
+        if (value.seconds) {
+            return new Date(value.seconds * 1000).toDateString();
+        }
+
+        // JS Date
+        if (value instanceof Date) {
+            return value.toDateString();
+        }
+
+        return '';
+    };
 
     const renderItem = ({ item }: any) => {
-        const isSubscribed = subscribedBatchIds.includes(item.id);
 
         return (
             <View style={styles.card}>
@@ -158,20 +205,31 @@ const StudentBatch = ({ navigation }: any) => {
                     </View>
                 </View>
 
-                <View style={styles.row}>
+                <View style={styles.subscribeRow}>
+                    {/* LEFT: Button */}
                     <TouchableOpacity
                         style={[
                             styles.startBtn,
-                            isSubscribed && styles.subscribedBtn,
+                            isSubscribed(item.id) && styles.disabledBtn,
                         ]}
+                        disabled={isSubscribed(item.id)}
                         onPress={() => subscribeBatch(item)}
-                        disabled={isSubscribed}
                     >
                         <Text style={styles.btnText}>
-                            {isSubscribed ? 'Subscribed' : 'Subscribe'}
+                            {isSubscribed(item.id) ? 'Subscribed' : 'Subscribe'}
                         </Text>
                     </TouchableOpacity>
+
+                    {/* RIGHT: Subscription text */}
+                    {isSubscribed(item.id) && (
+                        <Text style={styles.subscribedText}>
+                            You have subscribed on {getSubscribedDate(item.id)}
+                        </Text>
+                    )}
                 </View>
+
+
+
             </View>
         );
     };
@@ -271,7 +329,27 @@ const styles = StyleSheet.create({
     },
     subscribedBtn: {
         backgroundColor: '#9e9e9e',
-    }
+    },
+
+
+    subscribeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 12,
+    },
+
+    disabledBtn: {
+        backgroundColor: '#aaa',
+    },
+
+    subscribedText: {
+        marginLeft: 10,
+        fontSize: 12,
+        color: 'green',
+        flex: 1,              // pushes text to right
+        flexWrap: 'wrap',
+    },
+
 });
 
 
