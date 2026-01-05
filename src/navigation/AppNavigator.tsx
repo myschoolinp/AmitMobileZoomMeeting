@@ -7,6 +7,9 @@ import StudentTabNavigator from './StudentTabNavigator';
 import AuthLoading from '../screens/AuthLoading';
 import AdminTabNavigator from './AdminTabNavigator';
 import AdminAddBatch from '../screens/admin/AdminAddBatch';
+import BatchSubscribers from '../screens/admin/BatchSubscribers';
+import AllUsersList from '../screens/AllUserList';
+import AdminAddCourse from '../screens/admin/addCourse';
 
 const Stack = createStackNavigator();
 
@@ -40,6 +43,22 @@ const AppNavigator = () => {
           component={AdminTabNavigator}
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="BatchSubscribers"
+          component={BatchSubscribers}
+          options={{ title: 'Subscribed Users' }}
+        />
+        <Stack.Screen
+          name="AllUserList"
+          component={AllUsersList}
+          options={{ title: 'All Registered Users' }}
+        />
+        <Stack.Screen
+          name="AdminAddCourse"
+          component={AdminAddCourse}
+          options={{ title: 'Add New Course' }}
+        />
+
 
       </Stack.Navigator>
     </NavigationContainer>

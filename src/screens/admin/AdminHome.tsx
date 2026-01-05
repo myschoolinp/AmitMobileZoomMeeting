@@ -53,9 +53,10 @@ const AdminHome = ({ navigation }: any) => {
         fetchSettings();
     }, []);
     const navCards = [
-        { name: 'Batch', icon: 'people-outline', color: '#28a745' },
-        { name: 'Courses', icon: 'book-outline', color: '#007AFF' },
-        { name: 'Profile', icon: 'person-outline', color: '#ff9500' },
+        { navigation: 'Batch', icon: 'people-outline', color: '#28a745', title: 'Batch' },
+        { navigation: 'Courses', icon: 'book-outline', color: '#007AFF', title: 'Courses' },
+        { navigation: 'Profile', icon: 'person-outline', color: '#ff9500', title: 'Profile' },
+        { navigation: 'AllUserList', icon: 'person-outline', color: '#800000', title: 'Users' },
     ];
     const openModal = (type: 'announcement' | 'contact') => {
         setModalType(type);
@@ -116,9 +117,9 @@ const AdminHome = ({ navigation }: any) => {
                     <TouchableOpacity
                         key={index}
                         style={[styles.navCard, { backgroundColor: card.color }]}
-                        onPress={() => navigation.navigate(card.name)}
+                        onPress={() => navigation.navigate(card.navigation)}
                     >
-                        <Text style={[styles.cardText, { color: '#fff' }]}>{card.name}</Text>
+                        <Text style={[styles.cardText, { color: '#fff' }]}>{card.title}</Text>
                     </TouchableOpacity>
                 ))}
             </View>
@@ -264,7 +265,7 @@ const styles = StyleSheet.create({
     navCard: {
         flex: 1,
         marginHorizontal: 5,
-        padding: 20,
+        padding: 15,
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',

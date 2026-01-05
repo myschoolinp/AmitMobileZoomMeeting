@@ -20,43 +20,75 @@ import {
 } from '@react-native-firebase/firestore';
 
 import { Timestamp } from 'firebase/firestore';
-import { getUser } from '../../utils/storage';
+import { getUser } from '../../../utils/storage';
 import { useIsFocused } from '@react-navigation/native';
+import { onSnapshot } from '@react-native-firebase/firestore';
+import { useLoader } from '../../../context/LoaderContext';
 
-const StudentCourses = ({ navigation }: any) => {
+const JoinedBatches = ({ navigation }: any) => {
     const [courses, setCourses] = useState<any[]>([]);
     const isFocused = useIsFocused();
+    const { showLoader, hideLoader } = useLoader();
+
     const db = getFirestore();
 
+
     useEffect(() => {
-        if (isFocused) {
-            loadCourses();
-        }
-    }, [isFocused]);
+        const subscribeToCourses = async () => {
+            showLoader();
+            const user = await getUser();
+            if (!user?.id) return;
 
-    const loadCourses = async () => {
-        const user = await getUser();
-        if (!user?.id) return;
+            const userRef = doc(db, 'users', user.id);
 
-        const userRef = doc(db, 'users', user.id);
-        const userSnap = await getDoc(userRef);
-        const subscribedIds = userSnap.data()?.subscribedBatches || {};
-        const ids = Object.keys(subscribedIds)
-        if (ids.length === 0) return;
+            // Listen for changes in user's subscribedBatches
+            const unsubscribeUser = onSnapshot(userRef, async (userSnap) => {
+                if (!userSnap.exists()) return;
 
-        const q = query(
-            collection(db, 'batches'),
-            where('__name__', 'in', ids)
-        );
+                const subscribedIds: string[] = Object.keys(userSnap.data()?.subscribedBatches || {});
 
-        const snapshot = await getDocs(q);
-        const list = snapshot.docs.map((doc: any) => ({
-            id: doc.id,
-            ...doc.data(),
-        }));
+                if (subscribedIds.length === 0) {
+                    setCourses([]);
+                    return;
+                }
 
-        setCourses(list);
-    };
+                // Firestore only allows max 10 in 'in', so chunk
+                const chunks = [];
+                for (let i = 0; i < subscribedIds.length; i += 10) {
+                    chunks.push(subscribedIds.slice(i, i + 10));
+                }
+
+                let allCourses: any[] = [];
+
+                for (const chunk of chunks) {
+                    const q = query(collection(db, 'batches'), where('__name__', 'in', chunk));
+
+                    // Listen to each batch in real-time
+                    const unsubscribeBatch = onSnapshot(q, (snapshot) => {
+                        const list = snapshot.docs.map((doc: any) => ({
+                            id: doc.id,
+                            ...doc.data(),
+                        }));
+
+                        // Merge with previous courses
+                        allCourses = [...allCourses.filter(c => !list.find((l: any) => l.id === c.id)), ...list];
+                        setCourses(allCourses);
+                        hideLoader();
+                    });
+
+                    // Optional: store unsubscribeBatch if you want to stop listening later
+                }
+            });
+
+            // Clean up listener when component unmounts
+            return () => {
+                unsubscribeUser();
+            };
+        };
+
+        subscribeToCourses();
+    }, []);
+
 
     /* ---------- FORMATTERS ---------- */
 
@@ -254,4 +286,4 @@ const styles = StyleSheet.create({
 
 });
 
-export default StudentCourses;
+export default JoinedBatches;

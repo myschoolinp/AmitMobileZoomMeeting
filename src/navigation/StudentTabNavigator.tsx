@@ -1,12 +1,12 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import StudentHome from '../screens/student/StudentHome';
-import StudentBatch from '../screens/student/StudentBatch';
-import StudentCourses from '../screens/student/StudentCourses';
 import StudentProfile from '../screens/student/StudentProfile';
 import { TouchableOpacity, Text, Alert } from 'react-native';
 import { clearUser } from '../utils/storage';
 import { useNavigation } from '@react-navigation/native';
+import BatchScreen from '../screens/student/batch/BatchScreen';
+import CourseScreen from '../screens/student/course/CourseScreen';
 const Tab = createBottomTabNavigator();
 
 const StudentTabNavigator = () => {
@@ -75,7 +75,7 @@ const StudentTabNavigator = () => {
 
             <Tab.Screen
                 name="Batch"
-                component={StudentBatch}
+                component={BatchScreen}
                 options={{
                     tabBarIcon: ({ color }) => (
                         <Text style={{ fontSize: 18, color }}>👥</Text>
@@ -85,9 +85,9 @@ const StudentTabNavigator = () => {
 
             <Tab.Screen
                 name="Courses"
-                component={StudentCourses}
+                component={CourseScreen}
                 options={{
-                    tabBarLabel: 'My Courses',
+                    tabBarLabel: 'Courses',
                     tabBarIcon: ({ color }) => (
                         <Text style={{ fontSize: 18, color }}>📚</Text>
                     ),

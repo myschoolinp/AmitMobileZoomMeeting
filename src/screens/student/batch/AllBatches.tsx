@@ -21,10 +21,10 @@ import {
 } from '@react-native-firebase/firestore';
 
 import { Timestamp } from 'firebase/firestore';
-import { getUser } from '../../utils/storage';
+import { getUser } from '../../../utils/storage';
 
 
-const StudentBatch = ({ navigation }: any) => {
+const AllBatches = ({ navigation }: any) => {
     const [batches, setBatches] = useState<any[]>([]);
     const [subscribedBatchIds, setSubscribedBatchIds] = useState<string[]>([]);
     const [subscribedBatches, setSubscribedBatches] = useState<any>({});
@@ -353,4 +353,4 @@ const styles = StyleSheet.create({
 });
 
 
-export default StudentBatch;
+export default AllBatches;

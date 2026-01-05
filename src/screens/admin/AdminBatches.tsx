@@ -15,6 +15,7 @@ import {
   onSnapshot,
   deleteDoc,
   doc,
+  updateDoc,
 } from '@react-native-firebase/firestore';
 
 import { Timestamp } from 'firebase/firestore';
@@ -22,7 +23,11 @@ import { Timestamp } from 'firebase/firestore';
 
 const AdminBatchList = ({ navigation }: any) => {
   const [batches, setBatches] = useState<any[]>([]);
-
+  const [users, setUsers] = useState<any[]>([]);
+  useEffect(() => {
+    const unsub = getUsers();
+    return () => unsub && unsub();
+  }, []);
   useEffect(() => {
     const db = getFirestore();
 
@@ -37,19 +42,34 @@ const AdminBatchList = ({ navigation }: any) => {
     return () => unsub();
   }, []);
 
-  const startMeeting = async (link: string) => {
-    if (!link) {
-      Alert.alert('Error', 'Zoom link not available');
-      return;
-    }
+  const toggleMeetingStatus = async (batch: any) => {
+    try {
+      const batchRef = doc(db, 'batches', batch.id);
 
-    const supported = await Linking.canOpenURL(link);
-    if (supported) {
-      Linking.openURL(link);
-    } else {
-      Alert.alert('Error', 'Invalid Zoom link');
+      if (batch.meetingStatus === 'started') {
+        // ⛔ Stop meeting
+        await updateDoc(batchRef, {
+          meetingStatus: 'scheduled',
+        });
+
+        Alert.alert('Meeting Stopped', 'Meeting has been stopped');
+      } else {
+        // ▶️ Start meeting
+        await updateDoc(batchRef, {
+          meetingStatus: 'started',
+        });
+
+        if (batch.zoomLink) {
+          Linking.openURL(batch.zoomLink);
+        }
+
+        Alert.alert('Meeting Started', 'Meeting has started');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
     }
   };
+
   const db = getFirestore();
 
   const deleteBatch = async (id: string) => {
@@ -64,6 +84,24 @@ const AdminBatchList = ({ navigation }: any) => {
       },
     ]);
   };
+  const getUsers: any = () => {
+    const db = getFirestore();
+
+    return onSnapshot(collection(db, 'users'), snapshot => {
+
+      setUsers(snapshot.docs);
+
+
+    });
+  };
+
+  const getSubscribedCount = (batchId: string) => {
+    return users.filter((doc: any) => {
+      const data = doc.data();
+      return data?.subscribedBatches?.[batchId];
+    });
+  };
+
 
   const formatDate = (dateField: any) => {
     if (!dateField) return '';
@@ -122,8 +160,42 @@ const AdminBatchList = ({ navigation }: any) => {
 
   const renderItem = ({ item }: any) => (
     <View style={styles.card}>
-      <Text style={styles.title}>{item.topic}</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>{item.topic}</Text>
+
+        <View style={styles.iconRow}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AdminAddBatch', { batch: item })}
+            disabled={item.meetingStatus === 'started'}
+          >
+            <Text
+              style={[
+                styles.iconText,
+                item.meetingStatus === 'started' && styles.disabledIcon,
+              ]}
+            >
+              ✏️
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => deleteBatch(item.id)}
+            disabled={item.meetingStatus === 'started'}
+          >
+            <Text
+              style={[
+                styles.iconText,
+                item.meetingStatus === 'started' && styles.disabledIcon,
+              ]}
+            >
+              ❌
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <Text>{item.description}</Text>
+
 
       {/* Row container for left & right sections */}
       <View style={styles.rowContainer}>
@@ -138,6 +210,19 @@ const AdminBatchList = ({ navigation }: any) => {
         <View style={styles.rightColumn}>
           <Text>👥 Batch Size: {item.batchSize}</Text>
           <Text>💰 Fee: ₹{item.fee}</Text>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('BatchSubscribers', {
+                users: getSubscribedCount(item.id),
+                batchName: item.topic,
+              })
+            }
+          >
+            <Text style={styles.subscriberText}>
+              👤 Subscribed: {getSubscribedCount(item.id)?.length} users
+            </Text>
+          </TouchableOpacity>
+
         </View>
       </View>
       {/* Other buttons here */}
@@ -145,25 +230,17 @@ const AdminBatchList = ({ navigation }: any) => {
 
       <View style={styles.row}>
         <TouchableOpacity
-          style={styles.startBtn}
-          onPress={() => startMeeting(item.zoomLink)}
+          style={[
+            styles.startBtn,
+            item.meetingStatus === 'started' && styles.stopBtn,
+          ]}
+          onPress={() => toggleMeetingStatus(item)}
         >
-          <Text style={styles.btnText}>Start Meeting</Text>
+          <Text style={styles.btnText}>
+            {item.meetingStatus === 'started' ? 'Stop Meeting' : 'Start Meeting'}
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.editBtn}
-          onPress={() => navigation.navigate('AdminAddBatch', { batch: item })}
-        >
-          <Text style={styles.btnText}>Edit</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() => deleteBatch(item.id)}
-        >
-          <Text style={styles.btnText}>Delete</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -278,6 +355,33 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-start', // aligns text to right inside the right column
     justifyContent: 'flex-start',
+  },
+  stopBtn: {
+    backgroundColor: '#ff3b30',
+  },
+  subscriberText: {
+    marginTop: 4,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+
+  iconRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  iconText: {
+    fontSize: 14,
+  },
+
+  disabledIcon: {
+    opacity: 0.3,
   },
 
 });

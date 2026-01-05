@@ -1,56 +1,100 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     FlatList,
+    Alert,
 } from 'react-native';
+
+import {
+    getFirestore,
+    collection,
+    onSnapshot,
+    doc,
+    deleteDoc
+} from '@react-native-firebase/firestore';
 
 type Course = {
     id: string;
-    name: string;
+    courseName: string;
     description: string;
     duration: string;
-    fee: string;
-    batchSize: number;
-    mode: string;
+    price: number;
+    discount?: number;
+    isAvailableInDesktop: boolean;
+    notes?: string;
+    createdAt?: number; // stored as milliseconds
 };
 
-const courses: Course[] = [
-    {
-        id: '1',
-        name: 'React Native Development',
-        description: 'Learn to build mobile apps using React Native from scratch.',
-        duration: '3 Months',
-        fee: '₹12,000',
-        batchSize: 25,
-        mode: 'Online',
-    },
-    {
-        id: '2',
-        name: 'Full Stack Web Development',
-        description: 'Frontend + Backend development using MERN stack.',
-        duration: '6 Months',
-        fee: '₹25,000',
-        batchSize: 30,
-        mode: 'Offline',
-    },
-    {
-        id: '3',
-        name: 'Java Programming',
-        description: 'Core Java, OOPs, and advanced concepts.',
-        duration: '2 Months',
-        fee: '₹8,000',
-        batchSize: 20,
-        mode: 'Online',
-    },
-];
-
 const AdminCourses = ({ navigation }: any) => {
+    const [courses, setCourses] = useState<Course[]>([]);
+
+    const db = getFirestore();
+
+    // 🔔 Fetch courses in real-time
+    useEffect(() => {
+        const unsub = onSnapshot(collection(db, 'courses'), snapshot => {
+            const list = snapshot.docs.map((doc: any) => ({
+                id: doc.id,
+                ...doc.data(),
+            })) as Course[];
+            setCourses(list);
+        });
+
+        return () => unsub();
+    }, []);
+
+    const handleDeleteCourse = async (id: string) => {
+        Alert.alert(
+            'Delete Course',
+            'Are you sure you want to delete this course?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteDoc(doc(db, 'courses', id));
+                            Alert.alert('Deleted', 'Course deleted successfully');
+                        } catch (error: any) {
+                            Alert.alert('Error', error.message);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const formatDate = (timestamp?: number) => {
+        if (!timestamp) return 'N/A';
+        return new Date(timestamp).toDateString();
+    };
+
     const renderCourseCard = ({ item }: { item: Course }) => (
         <View style={styles.card}>
-            <Text style={styles.title}>{item.name}</Text>
+            {/* Row container for topic + buttons */}
+            <View style={styles.topicRow}>
+                <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                    {item.courseName}
+                </Text>
+
+                <TouchableOpacity
+                    style={styles.editBtnSmall}
+                    onPress={() => navigation.navigate('AdminAddCourse', { course: item })}
+                >
+                    <Text style={styles.editText}>Edit</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.deleteBtnSmall}
+                    onPress={() => handleDeleteCourse(item.id)}
+                >
+                    <Text style={styles.deleteText}>Delete</Text>
+                </TouchableOpacity>
+            </View>
 
             <Text style={styles.text}>{item.description}</Text>
 
@@ -61,27 +105,30 @@ const AdminCourses = ({ navigation }: any) => {
 
             <View style={styles.row}>
                 <Text style={styles.label}>Fee:</Text>
-                <Text style={styles.value}>{item.fee}</Text>
+                <Text style={styles.value}>{item.price}</Text>
             </View>
 
             <View style={styles.row}>
-                <Text style={styles.label}>Batch Size:</Text>
-                <Text style={styles.value}>{item.batchSize}</Text>
+                <Text style={styles.label}>Discount:</Text>
+                <Text style={styles.value}>{item.discount || 0}%</Text>
             </View>
 
             <View style={styles.row}>
                 <Text style={styles.label}>Mode:</Text>
-                <Text style={styles.value}>{item.mode}</Text>
+                <Text style={styles.value}>
+                    {item.isAvailableInDesktop ? 'Desktop + Mobile' : 'Mobile Only'}
+                </Text>
             </View>
         </View>
     );
+
 
     return (
         <View style={styles.container}>
             {/* Top Add Course Button */}
             <TouchableOpacity
                 style={styles.addButton}
-                onPress={() => navigation.navigate('AddCourse')}
+                onPress={() => navigation.navigate('AdminAddCourse')}
             >
                 <Text style={styles.addButtonText}>+ Add Course</Text>
             </TouchableOpacity>
@@ -97,6 +144,9 @@ const AdminCourses = ({ navigation }: any) => {
         </View>
     );
 };
+
+export default AdminCourses;
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -134,11 +184,19 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 3 },
     },
 
-    title: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 8,
+    titleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
     },
+
+    actionButtons: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+
+
 
     text: {
         fontSize: 14,
@@ -153,13 +211,69 @@ const styles = StyleSheet.create({
 
     label: {
         fontWeight: '600',
-        width: 100,
+        width: 120,
         color: '#333',
     },
 
     value: {
         color: '#555',
     },
-});
 
-export default AdminCourses;
+    editBtn: {
+        backgroundColor: '#ff9500',
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 6,
+    },
+
+
+
+    deleteBtn: {
+        backgroundColor: '#ff3b30',
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 6,
+    },
+
+
+    topicRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+
+    title: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        flex: 1,              // takes available space
+    },
+
+    editBtnSmall: {
+        backgroundColor: '#ff9500',
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+        borderRadius: 6,
+        marginLeft: 8,
+    },
+
+    deleteBtnSmall: {
+        backgroundColor: '#ff3b30',
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+        borderRadius: 6,
+        marginLeft: 8,
+    },
+
+    editText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 12,
+    },
+
+    deleteText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 12,
+    },
+
+});

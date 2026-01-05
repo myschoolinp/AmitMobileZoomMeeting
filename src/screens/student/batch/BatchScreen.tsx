@@ -1,0 +1,42 @@
+import React, { useState } from 'react';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import JoinedBatches from './JoinedBatches';
+import AllBatches from './AllBatches';
+
+const BatchScreen = () => {
+    const [activeTab, setActiveTab] = useState<'all' | 'joined'>('all');
+
+    return (
+        <View style={{ flex: 1 }}>
+            {/* Top Tabs */}
+            <View style={styles.tabContainer}>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'all' && styles.activeTab]}
+                    onPress={() => setActiveTab('all')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>All Batches</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'joined' && styles.activeTab]}
+                    onPress={() => setActiveTab('joined')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'joined' && styles.activeTabText]}>Joined Batches</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Show selected tab */}
+            {activeTab === 'all' ? <AllBatches /> : <JoinedBatches />}
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    tabContainer: { flexDirection: 'row', margin: 16 },
+    tab: { flex: 1, paddingVertical: 10, backgroundColor: '#ddd', borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
+    activeTab: { backgroundColor: '#007AFF' },
+    tabText: { color: '#333', fontWeight: '600' },
+    activeTabText: { color: '#fff' },
+});
+
+export default BatchScreen;
