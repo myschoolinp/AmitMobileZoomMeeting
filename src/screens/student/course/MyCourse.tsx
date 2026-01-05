@@ -3,19 +3,20 @@ import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { getFirestore, doc, getDoc } from '@react-native-firebase/firestore';
 import { getUser } from '../../../utils/storage';
 import { Timestamp } from '@react-native-firebase/firestore';
+import { useLoader } from '../../../context/LoaderContext';
 
 const MyCourses = () => {
     const [myCourses, setMyCourses] = useState<any[]>([]);
     const db = getFirestore();
-    const [loading, setLoading] = useState(true);
+    const { showLoader, hideLoader } = useLoader();
 
     useEffect(() => {
         const fetchMyCourses = async () => {
-            setLoading(true);
+            showLoader();
             const user = await getUser();
             if (!user?.id) {
                 setMyCourses([]);
-                setLoading(false);
+                hideLoader();
                 return;
             }
 
@@ -39,7 +40,7 @@ const MyCourses = () => {
 
                 setMyCourses(coursesData);
             }
-            setLoading(false);
+            hideLoader();
         };
         fetchMyCourses();
     }, []);
@@ -51,13 +52,7 @@ const MyCourses = () => {
         return new Date(timestamp).toDateString();
     };
 
-    if (loading) {
-        return (
-            <View style={styles.center}>
-                <Text>Loading...</Text>
-            </View>
-        );
-    }
+
 
     if (myCourses.length === 0) {
         return (

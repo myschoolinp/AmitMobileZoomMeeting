@@ -10,36 +10,44 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
-  Keyboard
+  Keyboard,
+  TouchableOpacity,
 } from 'react-native';
-import { doc, setDoc, collection, query, where, getDoc, getFirestore, getDocs } from '@react-native-firebase/firestore';
+
+import {
+  collection,
+  query,
+  where,
+  getFirestore,
+  getDocs,
+} from '@react-native-firebase/firestore';
+
 import { saveUser, simpleHash } from '../utils/storage';
 import { useLoader } from '../context/LoaderContext';
 
 type Props = {
   navigation: any;
 };
+
 const LoginScreen = ({ navigation }: Props) => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
+
+  const [identifierError, setIdentifierError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [identifier, setIdentifier] = useState(''); // email OR mobile
+  const [showPassword, setShowPassword] = useState(false);
+
   const passwordRef = useRef<TextInput>(null);
   const { showLoader, hideLoader } = useLoader();
 
-
-
-
   const handleLogin = async () => {
-
     let isValid = true;
-    setEmailError('');
+
+    setIdentifierError('');
     setPasswordError('');
 
     if (!identifier.trim()) {
-      setEmailError('Email or mobile number is required');
+      setIdentifierError('Email or mobile number is required');
       isValid = false;
     }
 
@@ -79,7 +87,6 @@ const LoginScreen = ({ navigation }: Props) => {
       }
 
       delete userData.password;
-
       await saveUser({ id: userDoc.id, ...userData });
 
       setIdentifier('');
@@ -93,14 +100,9 @@ const LoginScreen = ({ navigation }: Props) => {
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
-      hideLoader(); // 🔥 always stop loader
+      hideLoader();
     }
   };
-
-
-
-
-
 
   return (
     <KeyboardAvoidingView
@@ -108,91 +110,132 @@ const LoginScreen = ({ navigation }: Props) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20,
-          paddingBottom: 150
-        }}
+        contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo */}
         <Image
           source={require('../assets/logo.png')}
-          style={{ width: 200, height: 200, marginBottom: 10 }}
+          style={styles.logo}
           resizeMode="contain"
         />
 
-        <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 20 }}>
-          Welcome Back
-        </Text>
+        <Text style={styles.title}>Welcome Back</Text>
 
-        {/* Form */}
-        <View style={{ width: '100%' }}>
-
-
+        <View style={styles.form}>
+          {/* Email / Mobile */}
           <TextInput
             placeholder="Email or Mobile Number"
             value={identifier}
             onChangeText={(text) => {
               setIdentifier(text);
-              if (emailError) setEmailError('');
+              if (identifierError) setIdentifierError('');
             }}
-            style={[styles.input, emailError && styles.errorInput]}
+            style={[styles.input, identifierError && styles.errorInput]}
             returnKeyType="next"
             onSubmitEditing={() => passwordRef.current?.focus()}
-            blurOnSubmit={false}
           />
 
-          {emailError ? (
-            <Text style={styles.errorText}>{emailError}</Text>
+          {identifierError ? (
+            <Text style={styles.errorText}>{identifierError}</Text>
           ) : null}
 
+          {/* Password with SHOW / HIDE */}
+          <View style={[styles.passwordContainer, passwordError && styles.errorInput]}>
+            <TextInput
+              ref={passwordRef}
+              placeholder="Password"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) setPasswordError('');
+              }}
+              secureTextEntry={!showPassword}
+              style={styles.passwordInput}
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+            />
 
-          <TextInput
-            ref={passwordRef}
-            placeholder="Password"
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              if (passwordError) setPasswordError('');
-            }}
-            secureTextEntry
-            style={[styles.input, passwordError && styles.errorInput]}
-            returnKeyType="done"
-            onSubmitEditing={handleLogin}   // 🔥 LOGIN ON ENTER
-          />
-
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Text style={styles.showText}>
+                {showPassword ? 'Hide' : 'Show'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {passwordError ? (
             <Text style={styles.errorText}>{passwordError}</Text>
           ) : null}
 
-
-
           <Button title="Login" onPress={handleLogin} />
 
           <Text
-            style={{ marginTop: 25, color: '#007AFF', textAlign: 'center' }}
+            style={styles.registerText}
             onPress={() => navigation.navigate('Register')}
           >
             Don’t have an account? Register here
           </Text>
-
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
-
 };
+
+export default LoginScreen;
+
 const styles = StyleSheet.create({
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 150,
+  },
+
+  logo: {
+    width: 200,
+    height: 200,
+    marginBottom: 10,
+  },
+
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+
+  form: {
+    width: '100%',
+  },
+
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
     padding: 10,
     borderRadius: 5,
     marginBottom: 10,
+    backgroundColor: '#fff',
+  },
+
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff',
+    marginBottom: 15
+  },
+
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 10,
+  },
+
+  showText: {
+    color: '#007AFF',
+    fontWeight: '600',
+    paddingLeft: 10,
   },
 
   errorInput: {
@@ -204,6 +247,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 10,
   },
-});
 
-export default LoginScreen;
+  registerText: {
+    marginTop: 25,
+    color: '#007AFF',
+    textAlign: 'center',
+  },
+});

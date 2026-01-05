@@ -36,55 +36,67 @@ const JoinedBatches = ({ navigation }: any) => {
     useEffect(() => {
         const subscribeToCourses = async () => {
             showLoader();
-            const user = await getUser();
-            if (!user?.id) return;
+            try {
+                const user = await getUser();
+                if (!user?.id) return;
 
-            const userRef = doc(db, 'users', user.id);
+                const userRef = doc(db, 'users', user.id);
 
-            // Listen for changes in user's subscribedBatches
-            const unsubscribeUser = onSnapshot(userRef, async (userSnap) => {
-                if (!userSnap.exists()) return;
+                // Listen for changes in user's subscribedBatches
+                const unsubscribeUser = onSnapshot(userRef, async (userSnap) => {
+                    if (!userSnap.exists()) return;
 
-                const subscribedIds: string[] = Object.keys(userSnap.data()?.subscribedBatches || {});
+                    const subscribedIds: string[] = Object.keys(userSnap.data()?.subscribedBatches || {});
 
-                if (subscribedIds.length === 0) {
-                    setCourses([]);
-                    return;
-                }
+                    if (subscribedIds.length === 0) {
+                        setCourses([]);
+                        hideLoader()
+                        return;
+                    }
 
-                // Firestore only allows max 10 in 'in', so chunk
-                const chunks = [];
-                for (let i = 0; i < subscribedIds.length; i += 10) {
-                    chunks.push(subscribedIds.slice(i, i + 10));
-                }
+                    // Firestore only allows max 10 in 'in', so chunk
+                    const chunks = [];
+                    for (let i = 0; i < subscribedIds.length; i += 10) {
+                        chunks.push(subscribedIds.slice(i, i + 10));
+                    }
 
-                let allCourses: any[] = [];
+                    let allCourses: any[] = [];
 
-                for (const chunk of chunks) {
-                    const q = query(collection(db, 'batches'), where('__name__', 'in', chunk));
+                    for (const chunk of chunks) {
+                        try {
+                            const q = query(collection(db, 'batches'), where('__name__', 'in', chunk));
 
-                    // Listen to each batch in real-time
-                    const unsubscribeBatch = onSnapshot(q, (snapshot) => {
-                        const list = snapshot.docs.map((doc: any) => ({
-                            id: doc.id,
-                            ...doc.data(),
-                        }));
+                            // Listen to each batch in real-time
+                            const unsubscribeBatch = onSnapshot(q, (snapshot) => {
+                                const list = snapshot.docs.map((doc: any) => ({
+                                    id: doc.id,
+                                    ...doc.data(),
+                                }));
 
-                        // Merge with previous courses
-                        allCourses = [...allCourses.filter(c => !list.find((l: any) => l.id === c.id)), ...list];
-                        setCourses(allCourses);
-                        hideLoader();
-                    });
+                                // Merge with previous courses
+                                allCourses = [...allCourses.filter(c => !list.find((l: any) => l.id === c.id)), ...list];
+                                setCourses(allCourses);
+                                hideLoader();
+                            });
+                        }
+                        catch (e) {
+                            hideLoader();
+                        }
 
-                    // Optional: store unsubscribeBatch if you want to stop listening later
-                }
-            });
+                        // Optional: store unsubscribeBatch if you want to stop listening later
+                    }
+                    hideLoader();
+                });
 
-            // Clean up listener when component unmounts
-            return () => {
-                unsubscribeUser();
+                // Clean up listener when component unmounts
+                return () => {
+                    unsubscribeUser();
+                };
+            } catch (e) {
+                hideLoader()
             };
         };
+
 
         subscribeToCourses();
     }, []);
@@ -190,13 +202,6 @@ const JoinedBatches = ({ navigation }: any) => {
                 You have not subscribed to any courses. {'\n'}
                 Go to the Batch section and subscribe to start learning.
             </Text>
-
-            <TouchableOpacity
-                style={styles.goBatchBtn}
-                onPress={() => navigation.navigate('Batch')}
-            >
-                <Text style={styles.goBatchBtnText}>Go to Batch</Text>
-            </TouchableOpacity>
         </View>
     ) : (
         <FlatList
